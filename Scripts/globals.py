@@ -4,4 +4,6 @@ Use this file to set global variables which will be useful when saving experimen
 
 """
 
+global home_dir
+
 home_dir = ""
