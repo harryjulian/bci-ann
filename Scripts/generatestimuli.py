@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import numpy as np
 import pickle as pkl
 
@@ -43,9 +44,11 @@ class stimGenerator:
         
         """
 
-        return self.dataset
+        
 
-    def save(id):
+        return dataset
+
+    def save(save_dir):
 
         """
         
@@ -56,6 +59,7 @@ class stimGenerator:
 
         """
 
+        data_dir = save_dir + "/StimDataset" + "{0}".format(id)
 
 
-        print("Dataset saved.")
+        print("Dataset saved as pkl.")
