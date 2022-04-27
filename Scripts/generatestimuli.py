@@ -23,19 +23,39 @@ class stimGenerator:
         variance_conditions -> list; determines n of variance conditions
                                 for which stimuli are generated.
 
-        size -> int(); size of the dataset.
-
     """
 
     def __init__(self, array_length, spread, 
-                n_locations, variance_conditions, size):
+                n_locations, variance_conditions):
 
                 self.array_length = array_length
                 self.spread = spread
                 self.n_locations = n_locations
                 self.variance_conditions = variance_conditions
-                self.size = size
 
     def generate():
 
-        pass
+        """
+        
+            Generates dataset of arrays of where n = size
+
+            size -> int(); size of the dataset. 
+        
+        """
+
+        return self.dataset
+
+    def save(id):
+
+        """
+        
+            Saves generated dataset as pkl file.
+
+            id -> str(); unique identifier for this dataset.
+                         Naming convention tbc.
+
+        """
+
+
+
+        print("Dataset saved.")
