@@ -11,8 +11,6 @@ class bci_model():
 
         data -> _____ of 'behavioural data from a trained neural network.
 
-        ...
-    
     """
 
     def __init__(self, data):
