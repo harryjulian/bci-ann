@@ -25,21 +25,20 @@ def trailgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
 
     # Sample from these stimulus distributions
     Vsamples, Asamples = np.round(truncnorm.rvs(lowerbound, upperbound, loc = vloc, scale = vvar, size = size)), np.round(truncnorm.rvs(lowerbound, upperbound, loc = aloc, scale = avar, size = size))
-
-    # initialize an array of zeros size * array_length
+    Vsamples, Asamples = Vsamples.astype('int32'), Asamples.astype('int32')
+    # stimulus array of shape n_stim * 2 modalities * length of each subarray
     stimarray = np.zeros((size, 2, array_length))
 
-    for i, j, c, in Vsamples, Asamples, range(0, len(size)):
+    # Iterably add sampled stimuli to the correct location in the subarray
+    for i,j,c, in zip(Vsamples, Asamples, range(0, size)): # c is essentially an iteration marker to get it all into the correct place
 
-        
+        vspread, aspread = [(i-plusminusspread), i, (i+plusminusspread)], [(j-plusminusspread), j, (j+plusminusspread)] # So get a list of where to begin and end adding zeros
 
-    for i in range(int(vis_start), int(vis_fin)):
-        stim_array[0][i] = 1
-                
-    for i in range(int(aud_start), int(aud_fin)):
-        stim_array[1][i] = 1
+        for p,q in zip(vspread, aspread):
+            
+            stimarray[c][0][p], stimarray[c][1][q] = 1, 1
 
-    return samples
+    return stimarray
 
 class stimGenerator:
 
