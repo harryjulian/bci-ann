@@ -1,17 +1,45 @@
 import numpy as np
 import pickle as pkl
 import itertools
+from scipy.stats import truncnorm
+from tensorflow import convert_to_tensor
 
-def trailgen(array_length, spread, size, Vloc, Aloc):
+def trailgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
 
     """
         Used to generate stimuli for an individual condition, which
         should then be wrapped and placed in a dict.
+
+        Args:
+            array_length -> int()
+            plusminusspread -> int()
+            size -> int()
+            vloc -> int()
+            aloc -> int()
+            vvar -> int()
+            avar -> int()
     """
 
+    # Create Bounds like this, as truncnorm is defined with regards to the standard normal
+    lowerbound, upperbound = ((0 - vloc) / vvar), ((array_length - vloc) / vvar)
 
+    # Sample from these stimulus distributions
+    Vsamples, Asamples = np.round(truncnorm.rvs(lowerbound, upperbound, loc = vloc, scale = vvar, size = size)), np.round(truncnorm.rvs(lowerbound, upperbound, loc = aloc, scale = avar, size = size))
 
-    return trial
+    # initialize an array of zeros size * array_length
+    stimarray = np.zeros((size, 2, array_length))
+
+    for i, j, c, in Vsamples, Asamples, range(0, len(size)):
+
+        
+
+    for i in range(int(vis_start), int(vis_fin)):
+        stim_array[0][i] = 1
+                
+    for i in range(int(aud_start), int(aud_fin)):
+        stim_array[1][i] = 1
+
+    return samples
 
 class stimGenerator:
 
@@ -41,7 +69,7 @@ class stimGenerator:
                 self.spread = spread
                 self.n_locations = n_locations
                 self.variance_conditions = variance_conditions
-                print("Loaded generator.")
+                print("Loaded stimulus generator.")
     
     def generate(self, size):
         
