@@ -4,7 +4,7 @@ from itertools import product
 from scipy.stats import truncnorm
 from tensorflow import convert_to_tensor
 
-def trailgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
+def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
 
     """
         Used to generate stimuli for an individual condition, which
@@ -80,10 +80,10 @@ class stimGenerator:
 
         # Create data structure to hold the dataset
         dataset = {i:None for i in self.variance_conditions} # use dict to enable types of trials to remain marked?
-        n_percond = ((size / len(self.variance_conditions)) / self.n_locations)) # find n to generate per cond
+        n_percond = ((size / len(self.variance_conditions)) / self.n_locations) # find n to generate per cond
         
         # Find locations at which stimuli can be placed
-        bin_center = self.array_length / n_positions
+        bin_center = self.array_length / self.n_locations
         loc_list = [i*bin_center+bin_center for i in range(self.n_locations)]
         Vlist, Alist = loc_list, loc_list
 
