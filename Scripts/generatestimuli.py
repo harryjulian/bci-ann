@@ -1,6 +1,6 @@
 import numpy as np
 import pickle as pkl
-import itertools
+from itertools import product
 from scipy.stats import truncnorm
 from tensorflow import convert_to_tensor
 
@@ -65,15 +65,17 @@ class stimGenerator:
     def __init__(self, array_length, spread, n_locations, variance_conditions):
 
                 self.array_length = array_length
-                self.spread = spread
+                self.plusminusspread = spread
                 self.n_locations = n_locations
                 self.variance_conditions = variance_conditions
                 print("Loaded stimulus generator.")
     
-    def generate(self, size):
+    def generate(self, size, id, save = False):
         
         """Generates dataset of arrays of where n = size
         size -> int(); size of the dataset. 
+        id -> string(); unique identifier for the datasets
+        save -> bool; set to False by default
         """
 
         # Create data structure to hold the dataset
@@ -85,14 +87,16 @@ class stimGenerator:
         loc_list = [i*bin_center+bin_center for i in range(self.n_locations)]
         Vlist, Alist = loc_list, loc_list
 
-        conditions = [itertools.product(Vlist, Alist, self.variance_conditions)] 
+        combinations = list(product(Vlist, Alist, self.variance_conditions))
+
+        # For each combination, generate n_percond trials and add to dict 
+        for i in combinations:
+            trials = trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2])
+            dataset = dataset + {i, trials}
+
+        # Save as pkl if True
+        fname = id + '_dataset.pkl'
+        filetowrite = pkl.open(fname, 'rb')
+        pkl.dump(dataset, filetowrite)
 
         return dataset
-
-
-
-if __name__ == "__main__":
-
-    generator = stimGenerator(array_length=100, spread=1, n_locations=5, variance_conditions=[0, 1])
-    dataset = generator.generate()
-    print(dataset)
