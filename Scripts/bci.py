@@ -78,11 +78,20 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
 
-def run_bci():
+def run_bci(pCommon, sigV, varV, sigA, varA, sigP, varP, N = 10000):
 
-    """Function to compute the model"""
+    """Function to compute the model given a chosen set of parameters from the solver."""
 
-    pass
+    def sim_bci(Sv, Sa, sigV, varV, sigA, varA, sigP, varP, N = 10000):
+
+        Xv = sigV * np.random.randn(N,1) + Sv
+        Xa = sigA * np.random.randn(N,1) + Sa
+
+        return condition_preds
+
+    model_predictions = None
+
+    return model_predictions
 
 class bci_model:
 
