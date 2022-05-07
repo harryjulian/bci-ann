@@ -3,4 +3,4 @@ Repo containing scripts to train neural networks on analogues of Multisensory In
 
 Experiments should be able to be replicated simply by cloning the repo.
 
-![alt text](https://github.com/[harryjulian]/[bci-ann]/blob/[main]/bciflowchart(1).jpg?raw=true)
+![alt text](https://github.com/[harryjulian]/[bci-ann]/blob/[main]/bciflowchart (1).jpg?raw=true)
