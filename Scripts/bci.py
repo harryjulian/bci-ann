@@ -3,10 +3,7 @@ import numpy.matlib as ml
 import pickle as pkl
 from scipy.optimize import minimize
 
-####### Model Utility Functions 
-
-
-# Model Utility Functions
+# Model Utility Functions ~~~~~~~ These Compute the internal aspects of the model
 
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     #likelihood P(Xv, Xa|C =1)
@@ -77,30 +74,19 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
 
-# Functions for Model Fitting
+# Utility functions for fitting the model!
 
+def get_multinomial(sHatV, sHatA, vloc, aloc, conditions):
 
+    pass
 
-# Run Model a Single Time
+def get_multinomial_likelihood():
 
-def run_bci_singlecond(pCommon, sigV, varV, sigA, varA, sigP, varP, vloc, aloc, N = 10000):
-        
-        # Simulate N Stimuli in each modality
-        Xv = sigV * np.random.randn(N,1) + vloc
-        Xa = sigA * np.random.randn(N,1) + aloc
+    pass
 
-        # Calculate Model Internals
-        sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
-        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+# Runs Model a single time
 
-        # Generate the Multinomial Distributions
-
-
-        # Calculate Loglikelihood
-
-        pass # Should return Loglikelihood & predicted distribution probabilities
-
-def run_bci_allconds(pCommon, sigV, varV, sigA, varA, sigP, varP, N = 10000):
+def run_bci(pCommon, sigV, varV, sigA, varA, sigP, varP, conditions, N = 10000):
 
     """
         Function which runs the Bayesian Causal Inference model, given parsed parameters.
@@ -114,21 +100,57 @@ def run_bci_allconds(pCommon, sigV, varV, sigA, varA, sigP, varP, N = 10000):
             varA
             sigP
             varP
+            conditions
             N
-            Possibly need to indicate the different possible locations?
 
         Returns:
             output --> should contain both the ll and the predicted frequency of location guesses
                         based on conditions????
     """
 
+    overall_ll = 0
+
+    for cond in conditions:
+
+        vloc, aloc = cond[0], cond[1]
+
+        Xv = sigV * np.random.randn(N,1) + vloc
+        Xa = sigA * np.random.randn(N,1) + aloc
+
+        # Calculate Model Internals
+        sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+
+        # Generate the Multinomial Distributions
+        multinomial = get_multinomial(sHatV, sHatA, vloc, aloc, conditions)
+
+        # Calculate Loglikelihood
+        ll = get_multinomial_likelihood(multinomial)
+
+        overall_ll += ll
+        
+    return overall_ll
+
+# After the best parameters have been found, recompute the predicted stimulus distributions for each condition. Export this as some sort of metric, a vector of probabilities perhaps?
+
+def recompute_bci():
+
+    """
+        Given the fitted parameters, 
+    
+    """
+
     pass
+
+# Class to implement all of this
 
 class bci_model:
 
     """
         Class to setup and fit the bci model to 'behavioural' data
-        from a trained instance of a neural network. 
+        from a trained instance of a neural network. The model should be initialised
+        with the neural networks output, fitted and then the outputs of each model should be
+        gathered with the output function.
 
         Args:
 
@@ -136,8 +158,9 @@ class bci_model:
 
     """
 
-    def __init__(self, nn_behav_data):
+    def __init__(self, nn_behav_data, id):
         self.nn_data = nn_behav_data
+        self.id = id
         self.pCommon = float()
         self.sigV = float()
         self.varV = float()
@@ -145,11 +168,64 @@ class bci_model:
         self.varA = float()
         self.sigP = float()
         self.varP = float()
+        self.conditions = None
         self.N = 10000
 
-    def fit():
+    def fit(self):
 
-        output = minimize()
+        """
+            Finds the optimal parameters for the BCI model, fitted to
+            behavioural data from a neural network.
+
+            This should be written to recompute the optimization procedure
+
+
+            Args:
+                None
+            Returns:
+                output -> dict; of optimal parameter values. 
+        """
+
+        def optimize_model(self, model, n_optimisations = 10):
+
+            if model == 'MA':
+                self.pCommon = float()
+            elif model == 'ff':
+                self.pCommon = 1
+            elif model == 'ss':
+                self.pCommon = 0
+            else:
+                print("Incorrect model type specified.") 
+
+            internal_dict = {'ll':None,'params':None}
+
+            ### Decide how many times we'll run the optimizer...
+            ### Decide how we can determine the starting points...
+
+            for run in range(n_optimisations):
+
+                output = minimize(fit_bci) ####################################################
+
+                if output['ll'] > internal_dict['ll']:
+                    internal_dict = output # as they have the same keys, we just want to replace it
+
+            return output
+
+        # Run Optimizations for each Model type
+        ma_params = optimize_model(model = 'ma') 
+        ff_params = optimize_model(model = 'ff') 
+        ss_params = optimize_model(model = 'ss') 
         
+        self.param_output = {"MA Params":ma_params, "FF Params":ff_params, "SS Params":ss_params}
+
+    def output():
+
         pass
 
+    def save():
+
+        """
+            Saves fitted params + 
+        """
+
+        pass
