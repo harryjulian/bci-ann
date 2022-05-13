@@ -12,9 +12,6 @@ class rsamodel:
 
         print("Initialized RSA model.")
 
-    
-    # Define some functions for visualization, shoul
-
     def experimentrdm(conditions, save = False, save_dir = self.save_dir):
 
         """

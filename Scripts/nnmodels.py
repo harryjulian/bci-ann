@@ -68,10 +68,20 @@ def init_ffnet(array_length, v1shape = 8, a1shape = 8, ptshape = 8, ftshape = 8)
     
     return ffnet
 
-def init_recnet(array_length):
+def init_recnet(array_length, v1shape = 8, a1shape = 8, ptshape = 8, ftshape = 8):
 
     """
+        Creates and returns recnet, a simple RNN created to benchmark 
+        performance of models with recurrence.
 
+        Args:
+            array_length
+            v1shape
+            a1shape
+            ptshape
+            ftshape
+        Returns:
+            recnet --> Initialized TF RNN.
     """
 
     vis_input = Input(shape = (array_length,), name = "VIS") # Visual Info
