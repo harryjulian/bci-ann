@@ -1,15 +1,14 @@
 import numpy as np
 import numpy.matlib as ml
+import pickle as pkl
 from scipy.optimize import minimize
 
-### Model fitting code largely pinched from github user benjybarnett
+####### Model Utility Functions 
 
-### To me it probably makes more sense to only fit the causal inference model, and then use the dervied parameters
-### to get the results from the other models...easier, computationally too.
 
-# Model Inference
+# Model Utility Functions
 
-def calculate_likelihood_c1(Xv, Xa, M, pCommon, sigV, varV, sigA, varA, sigP, varP):
+def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     #likelihood P(Xv, Xa|C =1)
     
     firstDenom = 2*np.pi*np.sqrt(varV*varA + varV*varP +varA*varP)
@@ -78,20 +77,52 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
 
-def run_bci(pCommon, sigV, varV, sigA, varA, sigP, varP, N = 10000):
+# Functions for Model Fitting
 
-    """Function to compute the model given a chosen set of parameters from the solver."""
 
-    def sim_bci(Sv, Sa, sigV, varV, sigA, varA, sigP, varP, N = 10000):
 
-        Xv = sigV * np.random.randn(N,1) + Sv
-        Xa = sigA * np.random.randn(N,1) + Sa
+# Run Model a Single Time
 
-        return condition_preds
+def run_bci_singlecond(pCommon, sigV, varV, sigA, varA, sigP, varP, vloc, aloc, N = 10000):
+        
+        # Simulate N Stimuli in each modality
+        Xv = sigV * np.random.randn(N,1) + vloc
+        Xa = sigA * np.random.randn(N,1) + aloc
 
-    model_predictions = None
+        # Calculate Model Internals
+        sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
-    return model_predictions
+        # Generate the Multinomial Distributions
+
+
+        # Calculate Loglikelihood
+
+        pass # Should return Loglikelihood & predicted distribution probabilities
+
+def run_bci_allconds(pCommon, sigV, varV, sigA, varA, sigP, varP, N = 10000):
+
+    """
+        Function which runs the Bayesian Causal Inference model, given parsed parameters.
+        Computes shared likelihood across all conditions, returns predictions.
+
+        Args:
+            pCommon
+            sigV
+            varV
+            sigA
+            varA
+            sigP
+            varP
+            N
+            Possibly need to indicate the different possible locations?
+
+        Returns:
+            output --> should contain both the ll and the predicted frequency of location guesses
+                        based on conditions????
+    """
+
+    pass
 
 class bci_model:
 
@@ -101,18 +132,24 @@ class bci_model:
 
         Args:
 
-        data -> pd.DataFrame(); dataframe of 'behavioural data' from a given trained neural network. Doesn't matter which type coz
-                we're taking the finak output here
+        output -> dict
 
     """
 
-    def __init__(self, nn_data):
-        
-        self.nn_data = nn_data
-
-        print("Initialized the Bayesian Causal Inference Model.")
+    def __init__(self, nn_behav_data):
+        self.nn_data = nn_behav_data
+        self.pCommon = float()
+        self.sigV = float()
+        self.varV = float()
+        self.sigA = float()
+        self.varA = float()
+        self.sigP = float()
+        self.varP = float()
+        self.N = 10000
 
     def fit():
 
+        output = minimize()
+        
         pass
 

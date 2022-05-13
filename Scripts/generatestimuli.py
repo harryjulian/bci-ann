@@ -18,6 +18,10 @@ def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
             aloc -> int()
             vvar -> int()
             avar -> int()
+
+        Returns:
+            stimarray -> np.array of shape size * 2 modalities * array_length
+
     """
 
     # Create Bounds like this, as truncnorm is defined with regards to the standard normal
