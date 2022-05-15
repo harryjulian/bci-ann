@@ -76,11 +76,49 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
 # Utility functions for fitting the model!
 
-def get_multinomial(sHatV, sHatA, vloc, aloc, conditions):
+def get_classprobs(preds, locs = [20, 40, 60, 80, 100]):
+    
+    d_list = []
+    discrete_list = []
+    
+    # Create Bins
+    for i in preds:
+        d = min(locs, key=lambda x:abs(x-i))
+        d_list.append(d)
+    for i in locs:
+        count = d_list.count(i)
+        discrete_list.append(count)
+       
+    # Return as list of probabilities
+    probability_list = [i / sum(discrete_list) for i in discrete_list]
+    probability_list = [clip(i) for i in probability_list]
+    
+    return probability_list
 
-    pass
+def loglik(n, p):
+    
+    """
+        Returns MLE estimate for multinomial distribution.
+        n = list of counts
+        p = list of estimated class probabilities from 
+            model sampling.
+    """
+    
+    ll_list = []
+    
+    for i, j in zip(n, p):
+        term = i * np.log(j)
+        ll_list.append(term)
+    
+    return sum(ll_list)
 
-def get_multinomial_likelihood():
+def get_multinomial_loglikelihood(sHatV, sHatA, vloc, aloc, conditions):
+
+    def calc_multinomial_loglikelihood(n, p):
+
+        ll = np.sum([i * np.log(j) for i,j in zip(n, p)])
+
+        pass
 
     pass
 
@@ -122,12 +160,9 @@ def run_bci(pCommon, sigV, varV, sigA, varA, sigP, varP, conditions, N = 10000):
         sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
         # Generate the Multinomial Distributions
-        multinomial = get_multinomial(sHatV, sHatA, vloc, aloc, conditions)
+        multinomial_loglik = get_multinomial_loglikelihood(sHatV, sHatA, vloc, aloc, conditions)
 
-        # Calculate Loglikelihood
-        ll = get_multinomial_likelihood(multinomial)
-
-        overall_ll += ll
+        overall_ll += multinomial_loglik
         
     return overall_ll
 
