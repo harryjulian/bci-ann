@@ -16,9 +16,9 @@ def get_split(dataset):
 
     return train, test
 
-def load_dataset(save_dir + fname):
+def load_dataset(save_dir, fname):
 
-    file = open(sae_dir + '/' + fname,'r')
+    file = open(save_dir + '/' + fname,'r')
     dataset = pkl.load(file)
 
     return dataset
@@ -39,7 +39,7 @@ def get_split(dataset, test_size, random_state):
     return X_train, X_test, y_train, y_test
 
 def run_experiment(init_model, array_length, spread, n_locations, variance_conditions, 
-                   size, id, dataset_name, datasetsize, savedataset, save_dir, test_size, epochs, batch_size, learning_rate, momentum,
+                   size, id, dataset_name, datasetsize, savedataset, save_dir, epochs, batch_size, learning_rate, momentum,
                    train_size, test_size, random_state):
 
     # Load or generate synthetic trials
