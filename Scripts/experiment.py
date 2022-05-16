@@ -7,14 +7,7 @@ from generatestimuli import stimGenerator
 from bci import bci_model
 from keract import get_activations
 
-def get_split(dataset):
-
-    """
-    !!!
-
-    """
-
-    return train, test
+### Utility Functions
 
 def load_dataset(save_dir, fname):
 
@@ -38,11 +31,13 @@ def get_split(dataset, test_size, random_state):
 
     return X_train, X_test, y_train, y_test
 
+### Full function to run experiment
+
 def run_experiment(init_model, array_length, spread, n_locations, variance_conditions, 
                    size, id, dataset_name, datasetsize, savedataset, save_dir, epochs, batch_size, learning_rate, momentum,
-                   train_size, test_size, random_state):
+                   train_size, test_size, random_state, save_results):
 
-    # Load or generate synthetic trials
+    # Load OR generate synthetic trials depending on whether or not we can find the fpath
     if dataset_name != None:
         try:
             dataset = load_dataset(save_dir, dataset_name)
@@ -53,33 +48,40 @@ def run_experiment(init_model, array_length, spread, n_locations, variance_condi
         dataset = stimGenerator(array_length = array_length, spread = spread, 
                   n_locations = n_locations, variance_conditions = variance_conditions).generate(size = size, 
                                                                                 id = id, save = savedataset)
+
+    # Initialize Model
+    nnmodel = init_model()
+    n_layers = len(nnmodel.layers) - 2 # Minus input and output
+
+    # Create dict for results
+    results_behavioural = dict.fromkeys([i for i in dataset.keys()]) 
+    results_activations = dict.fromkeys([i for i in dataset.keys()])
     
-    # format dataset correctly
+    nest_dict = dict.fromkeys([i for i in range(n_layers)])
+    results_activations = dict.fromkeys(results_activations, nest_dict)
+
+    # Format dataset correctly (dict --> np.array)
     dataset = setup_dataset(dataset)
 
-    # then split into train and test set
+    # Split into Train & Test
     X_train, X_test, y_train, y_test = get_split(dataset, test_size, random_state)
-
-    # Train the network
-    nnmodel = init_model() 
+    
+    # Train Model
     nnmodel = nnmodel.fit(X_train, y_train)
 
-    # define results dict
-    results_dict = {} # with the same condition labels
-
-    # then for each condition
-    # test the network on each stimulus!
-    # get behaviouraul result 
-    # and activity patterns in hidden layers
-    # and create nested dict 
-
-    for i in results_dict():
-
+    # Test Model
+    for i in results_behavioural(): # select each key of the dict (i.e. each condition)
         stimlocs = np.where() # return locations of stimuli X_test and y_test
         condarray = np.array() # all of the stimuli
 
         for j in condarray:
             predicted_label = nnmodel.predict(condarray)
             layer_activations = keract.get_activations(nnmodel, j, auto_compile = True)
+
+    if save_results == True:
+
+        ### pkl the results and model in the save_dir!
+
+        pass
     
-    pass
+    return results_behavioural, results_activations

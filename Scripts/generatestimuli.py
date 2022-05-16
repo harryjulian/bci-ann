@@ -4,6 +4,16 @@ from itertools import product
 from scipy.stats import truncnorm
 from tensorflow import convert_to_tensor
 
+"""
+    Python file for generating artificial stimuli, which represent those
+    shown to humans in Kording et al., (2007) - Causal Inference in
+    Multisensory Perception.
+
+    Last remaining job to do here is to integrate the convert_to_tensor command,
+    but this is contingent on getting a working dist of tensorflow on this bloody 
+    M1 chip...
+"""
+
 def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
 
     """

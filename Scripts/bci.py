@@ -1,4 +1,3 @@
-from ssl import ALERT_DESCRIPTION_UNSUPPORTED_CERTIFICATE
 import numpy as np
 import numpy.matlib as ml
 import pickle as pkl
@@ -76,28 +75,6 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
 
-# Utility functions for fitting the model!
-
-def get_conditionprobs():
-
-    pass
-
-def get_multinomial_loglikelihood(data, N_trials, conditionprobs):
-
-    """
-        Computes multi-condition loglikelihood.
-
-        Args:
-            data -> dict
-            conditionprobs -> dict; of p, lists of multinomial probabilities.
-        Returns:
-            multinomial_ll -> float()
-    """
-
-    multinomial_ll = np.sum([multinomial.logpdf(i, N_trials, j) for i,j in zip(i, j)])
-
-    return multinomial_ll
-
 # Runs Model a single time
 
 def run_bci(data, pCommon, sigV, varV, sigA, varA, sigP, varP, possible_locs, N = 10000):
@@ -156,7 +133,6 @@ def run_bci(data, pCommon, sigV, varV, sigA, varA, sigP, varP, possible_locs, N 
     llV = np.sum([multinomial.logpdf(i, N_trials, j) for i,j in zip(data_list, problistV)])
     llA = np.sum([multinomial.logpdf(i, N_trials, j) for i,j in zip(data_list, problistA)])
 
-        
     return ll * -1 # returned as nLL
 
 # After the best parameters have been found, recompute the predicted stimulus distributions for each condition. Export this as some sort of metric, a vector of probabilities perhaps?
@@ -165,7 +141,6 @@ def recompute_bci():
 
     """
         Given the fitted parameters, 
-    
     """
 
     pass
