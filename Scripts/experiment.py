@@ -4,7 +4,7 @@ import os
 
 from sklearn.model_selection import train_test_split
 from generatestimuli import stimGenerator
-from bci import bci_model
+from bci import BCIModel
 from keract import get_activations
 
 ### Utility Functions

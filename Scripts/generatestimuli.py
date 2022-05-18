@@ -92,8 +92,6 @@ class stimGenerator:
         save -> bool; set to False by default
         """
 
-        # Create data structure to hold the dataset
-        dataset = {i:None for i in self.variance_conditions} # use dict to enable types of trials to remain marked?
         n_percond = ((size / len(self.variance_conditions)) / self.n_locations) # find n to generate per cond
         
         # Find locations at which stimuli can be placed
@@ -101,12 +99,14 @@ class stimGenerator:
         loc_list = [i*bin_center+bin_center for i in range(self.n_locations)]
         Vlist, Alist = loc_list, loc_list
 
+        # Create Dataset Obj
         combinations = list(product(Vlist, Alist, self.variance_conditions))
+        dataset = {i:None for i in combinations}
 
         # For each combination, generate n_percond trials and add to dict 
         for i in combinations:
             trials = trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2])
-            dataset = dataset + {i, trials}
+            dataset[i] = trials
 
         # Save as pkl if True
         fname = id + '_dataset.pkl'
