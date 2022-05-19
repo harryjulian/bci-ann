@@ -50,13 +50,13 @@ def opt_position_conditionalised_C1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, 
 def opt_position_conditionalised_C2(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # Get optimal locationS given C = 2
         
-        visualCue = Xv/varV +ml.repmat(pCommon,N,1)/varP
-        visualInvVar = 1/varV + 1/ varP
-        sHatVC2 = visualCue/visualInvVar
-        audCue = Xa/varA + ml.repmat(pCommon,N,1)/varP
-        audInvVar = 1/varA + 1/ varP
-        sHatAC2 = audCue/audInvVar
-        return sHatVC2, sHatAC2
+    visualCue = Xv/varV +ml.repmat(pCommon,N,1)/varP
+    visualInvVar = 1/varV + 1/ varP
+    sHatVC2 = visualCue/visualInvVar
+    audCue = Xa/varA + ml.repmat(pCommon,N,1)/varP
+    audInvVar = 1/varA + 1/ varP
+    sHatAC2 = audCue/audInvVar
+    return sHatVC2, sHatAC2
 
 def optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # Use Model Averaging to compute final visual est
@@ -90,9 +90,10 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
     sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
-    # Get Multinomial Distribution from p(sHatA | Xa, Xv) for fitting
-    countsA = [min(possible_locations, key=lambda x:abs(x-i)) for i in sHatA]
-    multinomialA = [i / sum(countsA) for i in countsA]
+    # Get Multinomial Distribution from p(sHatA | Xa, Xv) for model fitting
+    binnedA = [min(possible_locations, key=lambda x:abs(x-i)) for i in sHatA] # bin responses
+    countsA = [binnedA.count(i) for i in possible_locations] # get counts
+    multinomialA = [i / sum(countsA) for i in countsA] # get probabilities
 
     return multinomialA
 
@@ -109,14 +110,17 @@ def runBCI(data, N, possible_locations, params):
         vloc, aloc = cond[0], cond[1]
         respdisp = computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV, sigA, sigP)
     
-        ll = np.sum([multinomial.logpdf(i, N, j) for i,j in zip(data[cond], respdisp)])
+        ll = np.sum([multinomial.logpdf(i, N, j) for i,j in zip(data[cond], respdisp)]) # believe the data should be ordered n class occurences
         overall_ll =+ ll
 
     return overall_ll * -1 # returned as nLL
 
-def recomputeBCI(data, N, params):
+def recomputeBCI(data, N, possible_locations, params):
 
-    def recompute_bci(N, pCommon, sigV, sigA, sigP):
+    def bin(arr, possible_locations):
+        return [min(possible_locations, key=lambda x:abs(x-i)) for i in arr]
+
+    def recompute_bci(N, possible_locations, pCommon, sigV, sigA, sigP):
 
         # Get Variances
         varV, varA, varP = sigV**2, sigA**2, sigP**2
@@ -132,8 +136,8 @@ def recomputeBCI(data, N, params):
         sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
         sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
-        # Get Binned Responses
-
+        # Get Binned Responses ### Let's not 
+        sHatV, sHatA = bin(sHatV, possible_locations), bin(sHatA, possible_locations)
 
         return sHatV, sHatA, posteriorVA
 
@@ -143,7 +147,7 @@ def recomputeBCI(data, N, params):
 
     for cond in data:
         vloc, aloc = cond[0], cond[1]
-        sHatV, sHatA, posteriorVA = recompute_bci(N, pCommon, sigV, sigA, sigP)
+        sHatV, sHatA, posteriorVA = recompute_bci(N, possible_locations, pCommon, sigV, sigA, sigP)
         bcidata[cond]['sHatV'], bcidata[cond]['sHatA'], bcidata[cond]['posterior'] = np.mean(sHatV), np.mean(sHatA), np.mean(posteriorVA)
 
     return bcidata
@@ -159,6 +163,11 @@ class BCIModel:
         Args:
             nn_data --> dict; behavioural data from a trained NN.
             loc_list --> list; of possible stimulus locations on the azimuth.
+
+        Methods:
+            .fit() --> fits the model to the data, parameterizing self.param_values (array)
+            .recompute() --> recomputes model internals with fitted params for use in RSA. 
+                             Returns a dict in the form {cond:{sHatV:..., sHatA:..., posteriors:, }
     """
 
     def __init__(self, nn_data, loc_list):
@@ -185,6 +194,6 @@ class BCIModel:
 
     def recompute(self):
 
-        bcidata = recomputeBCI(self.nn_data, self.N, self.param_values)
+        bcidata = recomputeBCI(self.nn_data, self.N, self.possible_locations, self.param_values)
 
         return bcidata
