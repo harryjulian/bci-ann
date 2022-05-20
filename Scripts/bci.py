@@ -6,7 +6,7 @@ from scipy.optimize import minimize, Bounds
 from scipy.stats import multinomial
 
 # Model Utility Functions
-
+        
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =1)
     
@@ -81,6 +81,22 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
     """Given parameter estimates, compute the response distributions and get
         the multinomial distribution which will be used to compute the loglikelihood."""
 
+    def clip(l): # stop nasty divisions by zero!
+    
+        new_list = []
+        n_zeros = l.count(0)
+        n_not_zeros = len(l) - n_zeros
+        amount_to_minus = (n_zeros * 0.01) / n_not_zeros
+
+        for i in l:
+            if i == 0:
+                new_list.append(0.01)
+                print(i)
+            else:
+                new_list.append(i - amount_to_minus)
+
+        return new_list
+
     # Get Variances
     varV, varA, varP = sigV**2, sigA**2, sigP**2
 
@@ -93,7 +109,7 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
     # Get Multinomial Distribution from p(sHatA | Xa, Xv) for model fitting
     binnedA = [min(possible_locations, key=lambda x:abs(x-i)) for i in sHatA] # bin responses
     countsA = [binnedA.count(i) for i in possible_locations] # get counts
-    multinomialA = [i / sum(countsA) for i in countsA] # get probabilities
+    multinomialA = clip([i / sum(countsA) for i in countsA])# get probabilities
 
     return multinomialA
 
