@@ -87,7 +87,7 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
     # Calculate Model Internals
     Xv = sigV * np.random.randn(N,1) + vloc
     Xa = sigA * np.random.randn(N,1) + aloc
-    sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+    #sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
     # Get Multinomial Distribution from p(sHatA | Xa, Xv) for model fitting
@@ -97,7 +97,7 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
 
     return multinomialA
 
-def runBCI(data, N, possible_locations, params):
+def runBCI(params, data, N, possible_locations):
 
     # Define Metric
     overall_ll = 0
@@ -107,11 +107,16 @@ def runBCI(data, N, possible_locations, params):
 
     # Fit Params to each condition
     for cond in data:
+        print(cond)
         vloc, aloc = cond[0], cond[1]
+        print(vloc, aloc)
         respdisp = computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV, sigA, sigP)
-    
-        ll = np.sum([multinomial.logpdf(i, N, j) for i,j in zip(data[cond], respdisp)]) # believe the data should be ordered n class occurences
+        print(respdisp)
+        print(data[cond][1])
+        print(data[cond][1])
+        ll = multinomial.logpmf(data[cond][1], np.sum(data[cond][1]), respdisp)
         overall_ll =+ ll
+        print(overall_ll)
 
     return overall_ll * -1 # returned as nLL
 
@@ -181,14 +186,22 @@ class BCIModel:
 
         # Might be important to define more accurate bounds + starting points?
 
-        # Run Optimisation
-        bounds = Bounds([0.01, 0.99], [0,30], [0,30], [0,30])
-        x0 = [0.5, 10, 10, 10]
-        res = minimize(runBCI, x0, bounds, args = (self.nn_data, self.N, self.possible_locations))
-        
-        param_values = {'pCommon': res['x'][0], 'sigV': res['x'][1], 'sigA': res['x'][2], 'sigP': res['x'][3]}
+        def getmin(data = self.nn_data, N = self.N, possible_locations = self.possible_locations):
 
-        self.param_values = param_values
+            pCommon, sigV, sigA, sigP = float(), float(), float(), float()
+            params = [pCommon, sigV, sigA, sigP]
+            bounds = ((0.01, 0.99), (0,30), (0,30), (0,30))
+            x0 = [0.5, 10, 10, 10]
+            res = minimize(runBCI, x0 = x0, bounds = bounds, args = (data, N, possible_locations))
+            print(res['x'])
+            return res
+
+        # Run Opt
+        res = getmin()
+
+        # Get Fitted Pars
+        param_values = {'pCommon': res['x'][0], 'sigV': res['x'][1], 'sigA': res['x'][2], 'sigP': res['x'][3]}
+        self.param_values = res['x']
 
         return param_values
 
