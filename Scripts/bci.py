@@ -7,6 +7,12 @@ from scipy.stats import multinomial
 
 # Model Utility Functions
 
+def clip(x):
+    if x == 0:
+        return 0.01
+    else:
+        return x
+        
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =1)
     
@@ -94,6 +100,9 @@ def computeResponseDistribution(N, possible_locations, vloc, aloc, pCommon, sigV
     binnedA = [min(possible_locations, key=lambda x:abs(x-i)) for i in sHatA] # bin responses
     countsA = [binnedA.count(i) for i in possible_locations] # get counts
     multinomialA = [i / sum(countsA) for i in countsA] # get probabilities
+
+    #### need to ensure no zeros
+    ###
 
     return multinomialA
 
