@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import multinomial, norm
 from itertools import product
+import pytest
 
 def simulate_data(possible_locations, variance_conditions):
 
