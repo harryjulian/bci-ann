@@ -20,7 +20,7 @@ def simulate_data(possible_locations, variance_conditions):
     dataset = {i:None for i in combinations}
 
     for cond in dataset.keys():
-        v, a = norm.rvs(loc = cond[0], size = 100), norm.rvs(loc = cond[1], scale = cond[2], size = 100)
+        v, a = norm.rvs(loc = cond[0], scale = 5, size = 10000), norm.rvs(loc = cond[1], scale = cond[2], size = 10000)
         vBin, aBin = bin(v), bin(a)
         vCounts, aCounts = [vBin.count(i) for i in possible_locations], [aBin.count(i) for i in possible_locations]
         dataset[cond] = [vCounts, aCounts]
