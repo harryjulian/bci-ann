@@ -5,6 +5,7 @@ import pickle as pkl
 from itertools import product
 from scipy.stats import multinomial
 from scipy.optimize import minimize, brute
+from skopt.optimizer import Optimizer
 
 # utility for no nasty divide by zeros
 
@@ -174,21 +175,11 @@ def fitmodel(method, data, possible_locations, variance_conds, N):
     
     # Create bounds and get x0 from grid fitting procedure
     bounds = [(0.01, 0.6), (0.1, 15), (0.01, 15), (0.01, 15)]
-    x0 = fitgrid(params, data, possible_locations, variance_conds, N)
-    print(x0)
+    
 
-    res = minimize(bci, x0 = x0, bounds = bounds, args = (data, possible_locations, variance_conds, N), method = method)
+    res = Optimizer()
 
     return res, res['fun']
-
-def recomputemodel():
-
-    # recompute 20,000 monte carlo samples in each condition
-    # then get the rdms
-    # save as pkl?
-    # in the correct experimental folder.
-
-    pass
 
 
 

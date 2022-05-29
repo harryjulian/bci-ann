@@ -9,6 +9,10 @@ from keract import get_activations
 
 ### Utility Functions
 
+def get_conditions():
+
+    
+
 def load_dataset(save_dir, fname):
 
     file = open(save_dir + '/' + fname,'r')

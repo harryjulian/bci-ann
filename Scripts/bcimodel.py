@@ -1,30 +1,53 @@
 import numpy as np
 import numpy.matlib as ml
 import numba
+from itertools import product
+from scipy.stats import multinomial
+from skopt.optimizer import gp_minimize
+from skopt.space import Real
 
 # Utility Functions
 
+def get_conditions(possible_locations, variance_conditions):
+    return [product(possible_locations, variance_conditions)]
+
 @numba.njit
 def clip(l, roundup = 0.001):
-        l2 = []
-        for i in l:
-            if i == 0:
-                i += roundup
-                l2.append(i)
-            else:
-                l2.append(i)
-        l2 = [float(i)/sum(l2) for i in l2]
-        return l2
+    l2 = []
+    for i in l:
+        if i == 0:
+            i += roundup
+            l2.append(i)
+        else:
+            l2.append(i)
+    l2 = [float(i)/sum(l2) for i in l2]
+    return l2
 
 @numba.njit
-def count(binnedV, possible_locations):
+def counter(binnedV, possible_locations):
     return [binnedV.count(bvc) for bvc in possible_locations]
 
-@numba.njit
-def bin():
+def binner(arr, bins): # try and jitify this?
+    bin_centers = (bins[:-1] + bins[1:])/2 
+    idx = np.digitize(arr, bin_centers)
+    result = bins[idx]
+    return result
+
+# Write fast multinomial loglikelihood computer
+
+def multinomial_loglik():
+
+    pass
+
+def data_loader(): # load data into array format for speed
+
     pass
 
 # Model Internals
+
+@numba.njit
+def get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP):
+    return sigV * np.random.randn(N,1) + vloc, sigA * np.random.randn(N,1) + aloc
 
 @numba.njit
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
@@ -102,3 +125,43 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatAC2 = opt_position_conditionalised_C2(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)[1]
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
+
+# Write full Model Wrapper
+
+def bciobjective(pars):
+
+    """
+        Parameters --> np.array(dtype=object) of the following:
+                       pCommon, sigV, sigA, sigP,
+                       data, conditions, possible_locations N (in this order).
+    """
+
+    pCommon, sigV, sigA, sigP, data, conditions, possible_locations, N = pars #unpack array
+    varV, varA, varP = sigV**2, sigA**2, sigP**2
+    nLL = 0
+
+    for i, j in zip(data, range(len(data))):
+        vloc, aloc, variance = conditions[j]
+        Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatAbin = clip(binner(sHatA, possible_locations))
+        sHatAcount = counter(sHatAbin)
+        ll = multinomial.logpmf(data[j], np.sum(data[j]), sHatAcount)
+        nLL += ll
+
+    return nLL
+    
+def bcifit(data, conditions):
+
+    # Setup paramater space
+    searchspace = [Real(0.1, 0.7), Real(1, 20), Real(1, 20), Real(1, 20)]
+
+    # Run Optimizer
+    res = gp_minimize(bciobjective, dimensions=searchspace, n_initial_points=100, 
+                    initial_point_generator='lhs', noise='gaussian')
+
+    return res
+
+def bcirecompute():
+
+    pass
