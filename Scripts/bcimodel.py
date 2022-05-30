@@ -25,9 +25,7 @@ def clip(arr, roundup = 0.001):
     arr = np.clip(arr, 0.001, np.inf)
     return arr
 
-# Write fast multinomial loglikelihood computer
-
-def datasetup():
+def multinomial_nll():
 
     pass
 
