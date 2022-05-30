@@ -9,47 +9,35 @@ from skopt.space import Real
 # Utility Functions
 
 def get_conditions(possible_locations, variance_conditions):
-    return [product(possible_locations, variance_conditions)]
+    return list(product(possible_locations, possible_locations, variance_conditions))
 
-@numba.njit
-def clip(l, roundup = 0.001):
-    l2 = []
-    for i in l:
-        if i == 0:
-            i += roundup
-            l2.append(i)
-        else:
-            l2.append(i)
-    l2 = [float(i)/sum(l2) for i in l2]
-    return l2
-
-@numba.njit
-def counter(binnedV, possible_locations):
-    return [binnedV.count(bvc) for bvc in possible_locations]
-
-def binner(arr, bins): # try and jitify this?
+def binner(arr, bins):
     bin_centers = (bins[:-1] + bins[1:])/2 
     idx = np.digitize(arr, bin_centers)
     result = bins[idx]
     return result
 
+def counter(arr, possible_locations):
+    l = arr.tolist()
+    return np.array([l.count(i) for i in possible_locations])
+
+def clip(arr, roundup = 0.001): 
+    arr = np.clip(arr, 0.001, np.inf)
+    return arr
+
 # Write fast multinomial loglikelihood computer
 
-def multinomial_loglik():
-
-    pass
-
-def data_loader(): # load data into array format for speed
+def datasetup():
 
     pass
 
 # Model Internals
 
-@numba.njit
+#@numba.njit
 def get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP):
     return sigV * np.random.randn(N,1) + vloc, sigA * np.random.randn(N,1) + aloc
 
-@numba.njit
+#@numba.njit
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =1)
     
@@ -62,7 +50,7 @@ def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, va
 
     return likelihood_com
 
-@numba.njit
+#@numba.njit
 def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =2)
     
@@ -74,7 +62,7 @@ def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, var
 
     return likelihood_ind
 
-@numba.njit
+#@numba.njit
 def calculate_posterior(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # p(C = 1|Xv,Xa) posterior
     
@@ -140,13 +128,13 @@ def bciobjective(pars):
     varV, varA, varP = sigV**2, sigA**2, sigP**2
     nLL = 0
 
-    for i, j in zip(data, range(len(data))):
-        vloc, aloc, variance = conditions[j]
+    for cond in conditions:
+        d, vloc, aloc, variance = data[cond], cond[0], cond[1], cond[2]
         Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
         sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
         sHatAbin = clip(binner(sHatA, possible_locations))
-        sHatAcount = counter(sHatAbin)
-        ll = multinomial.logpmf(data[j], np.sum(data[j]), sHatAcount)
+        sHatAcount = counter(sHatAbin, possible_locations)
+        ll = multinomial.logpmf(d, np.sum(d), sHatAcount)
         nLL += ll
 
     return nLL
