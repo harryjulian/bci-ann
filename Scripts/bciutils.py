@@ -1,12 +1,15 @@
 import numpy as np
 import numpy.matlib as ml
+import numba
 import pickle as pkl
 from itertools import product
 from scipy.stats import multinomial
 from scipy.optimize import minimize, brute
+from skopt.optimizer import Optimizer
 
 # utility for no nasty divide by zeros
 
+@numba.jit
 def clip(l, roundup = 0.001): # i bet the first part of this could be 2 lines...
         l2 = []
         for i in l:
@@ -37,7 +40,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         Returns:
             sHatA - array of auditory estimates
     """
-
+    @jit
     def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # likelihood P(Xv, Xa|C =1)
         
@@ -49,6 +52,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         likelihood_com = firstTerm*secondTerm
         return likelihood_com
 
+    @jit
     def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # likelihood P(Xv, Xa|C =2)
         
@@ -59,6 +63,11 @@ def bci_montecarlo(vloc, aloc, N, params):
         likelihood_ind = secondTermFull/firstTerm
         return likelihood_ind
 
+    def
+    
+    likelihood_c2 = np.exp((-0.5*((Xv - 0)**2/(varV + varP)+(Xa - 0)**2/(varA + varP))))/2*np.pi*np.sqrt((varV + varP)*(varA+varP))
+
+    @jit
     def calculate_posterior(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # p(C = 1|Xv,Xa) posterior
         
@@ -69,6 +78,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         posterior = post_common/(post_common +post_indep)
         return posterior
 
+    @jit
     def opt_position_conditionalised_C1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # Get optimal location given C = 1
         
@@ -77,6 +87,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         sHatC1 = cues/inverseVar
         return sHatC1
 
+    @jit
     def opt_position_conditionalised_C2(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
             # Get optimal locationS given C = 2
             
@@ -88,6 +99,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         sHatAC2 = audCue/audInvVar
         return sHatVC2, sHatAC2
 
+    @jit
     def optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # Use Model Averaging to compute final visual est
         
@@ -97,6 +109,7 @@ def bci_montecarlo(vloc, aloc, N, params):
         sHatV = posterior_1C*sHatVC1 + (1-posterior_1C)*sHatVC2 #model averaging
         return sHatV
 
+    @jit
     def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
         # Use Model Averaging to compute final auditory est
         
@@ -116,27 +129,31 @@ def bci_montecarlo(vloc, aloc, N, params):
     Xv, Xa = sigV * np.random.randn(N,1) + vloc, sigA * np.random.randn(N,1) + aloc
 
     # Compute optimal auditory location
+    sHatV = optimal_visual_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
-    return sHatA
+    return sHatV, sHatA
 
 # Model outline - all conditions
 
 def bci(params, data, possible_locations, variance_conds, N):
 
     conditions = list(product(possible_locations, possible_locations, variance_conds))
-    nLL = 0
+    nLLV = 0
+    nLLA = 0
 
     for cond in conditions:
         vloc, aloc = cond[0], cond[1]
-        sHatA = bci_montecarlo(vloc, aloc, N, params)
-        binnedA = [min(possible_locations, key=lambda x:abs(x-i)) for i in sHatA] # bin responses
-        countsA = [binnedA.count(i) for i in possible_locations] # get counts
-        multinomialA = clip([i / sum(countsA) for i in countsA]) # get probabilities + clip so no division by zero
-        ll = multinomial.logpmf(data[cond][1], np.sum(data[cond][1]), multinomialA)
-        nLL += ll
+        sHatV, sHatA = bci_montecarlo(vloc, aloc, N, params)
 
-    return nLL / 100
+        # Bin Responses, get counts
+        binnedV = [min(possible_locations, key=lambda x:abs(x-bv)) for bv in sHatV]
+        countsV = [binnedV.count(bvc) for bvc in possible_locations]
+        multinomialV = clip([mv / sum(countsV) for mv in countsV])
+        llV = multinomial.logpmf(data[cond][0], np.sum(data[cond][0]), multinomialV)
+        nLLV += llV
+
+    return (nLLA + nLLV) * -1
 
 # Model fitting
 
@@ -158,29 +175,11 @@ def fitmodel(method, data, possible_locations, variance_conds, N):
     
     # Create bounds and get x0 from grid fitting procedure
     bounds = [(0.01, 0.6), (0.1, 15), (0.01, 15), (0.01, 15)]
-    x0 = fitgrid(params, data, possible_locations, variance_conds, N)
-    print(x0)
+    
 
-    res = minimize(bci, x0 = x0, bounds = bounds, args = (data, possible_locations, variance_conds, N), method = method)
+    res = Optimizer()
 
     return res, res['fun']
-
-def bci_rdms():
-
-    # Define the RDMs you want here.
-    # Ideally, posteriors...
-    # As well as the [vis, aud] vector response distances???
-
-    pass
-
-def recomputemodel():
-
-    # recompute 20,000 monte carlo samples in each condition
-    # then get the rdms
-    # save as pkl?
-    # in the correct experimental folder.
-
-    pass
 
 
 
