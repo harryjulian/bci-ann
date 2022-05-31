@@ -1,15 +1,13 @@
 import numpy as np
 import numpy.matlib as ml
-import numba
 from itertools import product
+
 from scipy.stats import multinomial
 from skopt.optimizer import gp_minimize
-from skopt.space import Real
+from skopt.space import Real, Categorical, Integer
+from skopt.utils import use_named_args
 
 # Utility Functions
-
-def get_conditions(possible_locations, variance_conditions):
-    return list(product(possible_locations, possible_locations, variance_conditions))
 
 def binner(arr, bins):
     bin_centers = (bins[:-1] + bins[1:])/2 
@@ -36,11 +34,9 @@ def multinomial_nll():
 
 # Model Internals
 
-#@numba.njit
 def get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP):
     return sigV * np.random.randn(N,1) + vloc, sigA * np.random.randn(N,1) + aloc
 
-#@numba.njit
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =1)
     
@@ -53,7 +49,6 @@ def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, va
 
     return likelihood_com
 
-#@numba.njit
 def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =2)
     
@@ -65,7 +60,6 @@ def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, var
 
     return likelihood_ind
 
-#@numba.njit
 def calculate_posterior(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # p(C = 1|Xv,Xa) posterior
     
@@ -127,7 +121,7 @@ def bciobjective(pars):
                        data, conditions, possible_locations N (in this order).
     """
 
-    pCommon, sigV, sigA, sigP, data, conditions, possible_locations, N = pars #unpack array
+    pCommon, sigV, sigA, sigP = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
 
     nLL = 0
@@ -144,14 +138,17 @@ def bciobjective(pars):
 
     return nLL
     
-def bcifit(data, conditions):
+def bcifit(data, conditions, possible_locations, N):
 
     # Setup paramater space
     searchspace = [Real(0.1, 0.7), Real(1, 20), Real(1, 20), Real(1, 20)]
 
     # Run Optimizer
     res = gp_minimize(bciobjective, dimensions=searchspace, n_initial_points=100, 
-                    initial_point_generator='lhs', noise='gaussian')
+                    initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
+
+    # Cleanup Env
+    del data, conditions, possible_locations, N
 
     return res
 
