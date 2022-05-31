@@ -21,9 +21,14 @@ def counter(arr, possible_locations):
     l = arr.tolist()
     return np.array([l.count(i) for i in possible_locations])
 
-def clip(arr, roundup = 0.001): 
-    arr = np.clip(arr, 0.001, np.inf)
-    return arr
+def getprobs(arr):
+    return arr / np.sum(arr)
+
+def clip(arr, roundup = 0.01): 
+    a = np.clip(arr, roundup, np.inf)
+    b = np.ndarray.sum(a, axis = 0)
+    norm = a/b
+    return norm
 
 def multinomial_nll():
 
@@ -124,15 +129,17 @@ def bciobjective(pars):
 
     pCommon, sigV, sigA, sigP, data, conditions, possible_locations, N = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
+
     nLL = 0
 
     for cond in conditions:
         d, vloc, aloc, variance = data[cond], cond[0], cond[1], cond[2]
         Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
         sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
-        sHatAbin = clip(binner(sHatA, possible_locations))
+        sHatAbin = binner(sHatA, possible_locations)
         sHatAcount = counter(sHatAbin, possible_locations)
-        ll = multinomial.logpmf(d, np.sum(d), sHatAcount)
+        sHatAprobs = clip(getprobs(sHatAcount))
+        ll = multinomial.logpmf(d[1], np.sum(d[1]), sHatAprobs)
         nLL += ll
 
     return nLL
