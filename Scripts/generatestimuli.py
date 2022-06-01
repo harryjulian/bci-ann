@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import pickle as pkl
 from itertools import product
@@ -21,16 +22,16 @@ def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
         should then be wrapped and placed in a dict.
 
         Args:
-            array_length -> int()
-            plusminusspread -> int()
-            size -> int()
-            vloc -> int()
-            aloc -> int()
-            vvar -> int()
-            avar -> int()
+         array_length -> int()
+         plusminusspread -> int()
+         size -> int()
+         vloc -> int()
+         aloc -> int()
+         vvar -> int()
+         avar -> int()
 
         Returns:
-            stimarray -> np.array of shape size * 2 modalities * array_length
+         stimarray -> np.array of shape size * 2 modalities * array_length
 
     """
 
@@ -62,21 +63,23 @@ class stimGenerator:
         tested on neural networks.
 
         Args:
+         array_length -> length of the proposed 1 * n array.
 
-        array_length -> int(); length of the proposed 1 * n array.
-
-        spread -> int(); determines how many entries around the "stimulus
+         spread -> determines how many entries around the "stimulus
                     landing spot" that is changed, i.e. size of the
                     stimulus in the array. 
 
-        n_locations -> int(); determines the amount of equally spaced
+         n_locations -> determines the amount of equally spaced
                        locations at which stimuli may appear. 
 
-        variance_conditions -> list; determines n of variance conditions
+         variance_conditions -> determines n of variance conditions
                                 for which stimuli are generated.
     """
 
-    def __init__(self, array_length, spread, n_locations, variance_conditions):
+    def __init__(self, array_length : int, 
+                 spread : int,
+                 n_locations : int, 
+                 variance_conditions : List):
 
                 self.array_length = array_length
                 self.plusminusspread = spread
@@ -84,12 +87,15 @@ class stimGenerator:
                 self.variance_conditions = variance_conditions
                 print("Loaded stimulus generator.")
     
-    def generate(self, size, id, save = False):
+    def generate(self, size : int, id : str, save = False):
         
-        """Generates dataset of arrays of where n = size
-        size -> int(); size of the dataset. 
-        id -> string(); unique identifier for the datasets
-        save -> bool; set to False by default
+        """
+            Generates dataset of arrays where size = n.
+
+            Args:
+             size -> size of the dataset. 
+             id -> unique identifier for the datasets
+             save -> bool
         """
 
         n_percond = ((size / len(self.variance_conditions)) / self.n_locations) # find n to generate per cond

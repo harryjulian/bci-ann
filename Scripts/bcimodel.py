@@ -8,7 +8,10 @@ from skopt.optimizer import gp_minimize
 from skopt.space import Real
 from skopt.plots import plot_objective
 
-# Utility Functions
+"""Model Internals largely copied from github user benjybarnett!
+   Just added fitting functions, recomputation functions and an OOP implementation."""
+
+# Fitting Utility Functions
 
 def binner(arr, bins):
     bin_centers = (bins[:-1] + bins[1:])/2 
@@ -112,12 +115,6 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
 def bciobjective(data, conditions, possible_locations, N, pars):
 
-    """
-        Parameters --> np.array(dtype=object) of the following:
-                       pCommon, sigV, sigA, sigP,
-                       data, conditions, possible_locations N (in this order).
-    """
-
     pCommon, sigV, sigA, sigP = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
 
@@ -176,6 +173,15 @@ def bcirecompute(data, conditions, possible_locations, N, pars):
 
     # run the model
 
+    for cond in conditions:
+        d, vloc, aloc, variance = data[cond], cond[0], cond[1], cond[2]
+        Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatV = optimal_visual_location(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatVbin, sHatAbin = binner(sHatV, possible_locations), binner(sHatA, possible_locations)
+        sHatVcount, sHatAcount = counter(sHatVbin, possible_locations), counter(sHatAbin, possible_locations)
+        sHatVprobs, sHatAprobs = clip(getprobs(sHatVcount)), clip(getprobs(sHatAcount))
+
     pass # return data structures
 
 # OOP Wrapper
@@ -220,4 +226,4 @@ class BCIModel:
             construction of the RDMs.
         """
 
-        pass
+        pass # should poss be two dicts of condition tuples : np.arrays of 5x1 multinomials OR 5x1 counts, equivalent anyway
