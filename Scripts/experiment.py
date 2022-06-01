@@ -1,6 +1,7 @@
 import numpy as np
 import pickle as pkl
 import os
+from itertools import product
 
 from sklearn.model_selection import train_test_split
 from generatestimuli import stimGenerator
@@ -9,9 +10,8 @@ from keract import get_activations
 
 ### Utility Functions
 
-def get_conditions():
-
-    
+def get_conditions(possible_locations, variance_conditions):
+    return list(product(possible_locations, possible_locations, variance_conditions))
 
 def load_dataset(save_dir, fname):
 

@@ -1,15 +1,14 @@
+from typing import Dict
 import numpy as np
 import numpy.matlib as ml
-import numba
 from itertools import product
+from functools import partial
 from scipy.stats import multinomial
 from skopt.optimizer import gp_minimize
 from skopt.space import Real
+from skopt.plots import plot_objective
 
 # Utility Functions
-
-def get_conditions(possible_locations, variance_conditions):
-    return list(product(possible_locations, possible_locations, variance_conditions))
 
 def binner(arr, bins):
     bin_centers = (bins[:-1] + bins[1:])/2 
@@ -21,23 +20,20 @@ def counter(arr, possible_locations):
     l = arr.tolist()
     return np.array([l.count(i) for i in possible_locations])
 
-def clip(arr, roundup = 0.001): 
-    arr = np.clip(arr, 0.001, np.inf)
-    return arr
+def getprobs(arr):
+    return arr / np.sum(arr)
 
-# Write fast multinomial loglikelihood computer
-
-def datasetup():
-
-    pass
+def clip(arr, roundup = 0.01): 
+    a = np.clip(arr, roundup, np.inf)
+    b = np.ndarray.sum(a, axis = 0)
+    norm = a/b
+    return norm
 
 # Model Internals
 
-#@numba.njit
 def get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP):
     return sigV * np.random.randn(N,1) + vloc, sigA * np.random.randn(N,1) + aloc
 
-#@numba.njit
 def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =1)
     
@@ -50,7 +46,6 @@ def calculate_likelihood_c1(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, va
 
     return likelihood_com
 
-#@numba.njit
 def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # likelihood P(Xv, Xa|C =2)
     
@@ -62,7 +57,6 @@ def calculate_likelihood_c2(Xv,Xa, N, pCommon, sigV, varV, sigA, varA, sigP, var
 
     return likelihood_ind
 
-#@numba.njit
 def calculate_posterior(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP):
     # p(C = 1|Xv,Xa) posterior
     
@@ -116,7 +110,7 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
 # Write full Model Wrapper
 
-def bciobjective(pars):
+def bciobjective(data, conditions, possible_locations, N, pars):
 
     """
         Parameters --> np.array(dtype=object) of the following:
@@ -124,32 +118,106 @@ def bciobjective(pars):
                        data, conditions, possible_locations N (in this order).
     """
 
-    pCommon, sigV, sigA, sigP, data, conditions, possible_locations, N = pars #unpack array
+    pCommon, sigV, sigA, sigP = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
+
     nLL = 0
 
     for cond in conditions:
         d, vloc, aloc, variance = data[cond], cond[0], cond[1], cond[2]
         Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
         sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
-        sHatAbin = clip(binner(sHatA, possible_locations))
+        sHatAbin = binner(sHatA, possible_locations)
         sHatAcount = counter(sHatAbin, possible_locations)
-        ll = multinomial.logpmf(d, np.sum(d), sHatAcount)
+        sHatAprobs = clip(getprobs(sHatAcount))
+        ll = multinomial.logpmf(d[1], np.sum(d[1]), sHatAprobs)
         nLL += ll
 
     return nLL
     
-def bcifit(data, conditions):
+def bcifit(data : Dict[tuple : np.array], conditions : list, 
+           possible_locations : np.array, N = 20000):
+
+    """
+       Fits the bci model to a given data dict, using Bayesian Optimization
+       based on Gaussian Processes. 
+       
+       Args:
+        data -> Dict[tuple of vloc, aloc, variance_cond : np.array representing multinomial dist of responses]
+        conditions -> list of tuples
+        possible_locations -> pre-specified 5x1 np.array, 
+        N -> nunber of samples for the monte carlo simulations, set at 20000 by default
+       
+       Returns:
+        res -> OptimizeResult object
+    """
+
+    # Get Partial function to feed into Opt
+    objective = partial(bciobjective, data, conditions, possible_locations, N)
 
     # Setup paramater space
-    searchspace = [Real(0.1, 0.7), Real(1, 20), Real(1, 20), Real(1, 20)]
+    pars = [Real(0.1, 0.6, name = 'pCommon'), 
+            Real(1, 15, name = 'sigV'), 
+            Real(1, 15, name = 'sigA'), 
+            Real(1, 15, name = 'sigP')]
 
     # Run Optimizer
-    res = gp_minimize(bciobjective, dimensions=searchspace, n_initial_points=100, 
-                    initial_point_generator='lhs', noise='gaussian')
+    res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
+                    initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
 
     return res
 
-def bcirecompute():
+def bcirecompute(data, conditions, possible_locations, N, pars):
 
-    pass
+    pCommon, sigV, sigA, sigP = pars #unpack array
+    varV, varA, varP = sigV**2, sigA**2, sigP**2
+
+    # Define new data structure to store results, depending on the kind of matrix we're after here
+
+    # run the model
+
+    pass # return data structures
+
+# OOP Wrapper
+
+class BCIModel:
+
+    def __init__(self, data, conditions, possible_locations):
+        self.data = data
+        self.conditions = conditions
+        self.possible_locations = possible_locations
+
+    def fit(self):
+
+        """
+            Calls the bcifit function on the classes params.
+            Returns OptimizeResult object.
+        """
+        
+        # Run Bayesian Optimization
+        res = bcifit(self.data, self.conditions, self.possible_locations)
+        
+        # Save Params in class
+        self.res = res
+        self.pCommon = res['x'][0]
+        self.sigV = res['x'][1]
+        self.sigA = res['x'][2]
+        self.sigP = res['x'][3]
+
+        # Return if wanted
+        return res
+
+    def plotopt(self):
+
+        # plot dependencies of params
+        plot_objective(self.res)
+
+    def output(self):
+
+        """
+            Given the fitted parameters, recompute the BCI model 
+            with a large amount of Monte Carlo simulations for
+            construction of the RDMs.
+        """
+
+        pass
