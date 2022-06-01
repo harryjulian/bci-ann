@@ -1,11 +1,12 @@
+from typing import Dict
 import numpy as np
 import numpy.matlib as ml
 from itertools import product
-
+from functools import partial
 from scipy.stats import multinomial
 from skopt.optimizer import gp_minimize
-from skopt.space import Real, Categorical, Integer
-from skopt.utils import use_named_args
+from skopt.space import Real
+from skopt.plots import plot_objective
 
 # Utility Functions
 
@@ -27,10 +28,6 @@ def clip(arr, roundup = 0.01):
     b = np.ndarray.sum(a, axis = 0)
     norm = a/b
     return norm
-
-def multinomial_nll():
-
-    pass
 
 # Model Internals
 
@@ -113,7 +110,7 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
 
 # Write full Model Wrapper
 
-def bciobjective(pars):
+def bciobjective(data, conditions, possible_locations, N, pars):
 
     """
         Parameters --> np.array(dtype=object) of the following:
@@ -138,20 +135,89 @@ def bciobjective(pars):
 
     return nLL
     
-def bcifit(data, conditions, possible_locations, N):
+def bcifit(data : Dict[tuple : np.array], conditions : list, 
+           possible_locations : np.array, N = 20000):
+
+    """
+       Fits the bci model to a given data dict, using Bayesian Optimization
+       based on Gaussian Processes. 
+       
+       Args:
+        data -> Dict[tuple of vloc, aloc, variance_cond : np.array representing multinomial dist of responses]
+        conditions -> list of tuples
+        possible_locations -> pre-specified 5x1 np.array, 
+        N -> nunber of samples for the monte carlo simulations, set at 20000 by default
+       
+       Returns:
+        res -> OptimizeResult object
+    """
+
+    # Get Partial function to feed into Opt
+    objective = partial(bciobjective, data, conditions, possible_locations, N)
 
     # Setup paramater space
-    searchspace = [Real(0.1, 0.7), Real(1, 20), Real(1, 20), Real(1, 20)]
+    pars = [Real(0.1, 0.6, name = 'pCommon'), 
+            Real(1, 15, name = 'sigV'), 
+            Real(1, 15, name = 'sigA'), 
+            Real(1, 15, name = 'sigP')]
 
     # Run Optimizer
-    res = gp_minimize(bciobjective, dimensions=searchspace, n_initial_points=100, 
+    res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
                     initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
-
-    # Cleanup Env
-    del data, conditions, possible_locations, N
 
     return res
 
-def bcirecompute():
+def bcirecompute(data, conditions, possible_locations, N, pars):
 
-    pass
+    pCommon, sigV, sigA, sigP = pars #unpack array
+    varV, varA, varP = sigV**2, sigA**2, sigP**2
+
+    # Define new data structure to store results, depending on the kind of matrix we're after here
+
+    # run the model
+
+    pass # return data structures
+
+# OOP Wrapper
+
+class BCIModel:
+
+    def __init__(self, data, conditions, possible_locations):
+        self.data = data
+        self.conditions = conditions
+        self.possible_locations = possible_locations
+
+    def fit(self):
+
+        """
+            Calls the bcifit function on the classes params.
+            Returns OptimizeResult object.
+        """
+        
+        # Run Bayesian Optimization
+        res = bcifit(self.data, self.conditions, self.possible_locations)
+        
+        # Save Params in class
+        self.res = res
+        self.pCommon = res['x'][0]
+        self.sigV = res['x'][1]
+        self.sigA = res['x'][2]
+        self.sigP = res['x'][3]
+
+        # Return if wanted
+        return res
+
+    def plotopt(self):
+
+        # plot dependencies of params
+        plot_objective(self.res)
+
+    def output(self):
+
+        """
+            Given the fitted parameters, recompute the BCI model 
+            with a large amount of Monte Carlo simulations for
+            construction of the RDMs.
+        """
+
+        pass
