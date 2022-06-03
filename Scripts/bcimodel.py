@@ -1,6 +1,7 @@
 from typing import Dict
 import numpy as np
 import numpy.matlib as ml
+import matplotlib.pyplot as plt
 from itertools import product
 from functools import partial
 from scipy.stats import multinomial
@@ -8,7 +9,10 @@ from skopt.optimizer import gp_minimize
 from skopt.space import Real
 from skopt.plots import plot_objective
 
-# Utility Functions
+"""Model Internals largely copied from github user benjybarnett!
+   Just added fitting functions, recomputation functions and an OOP implementation."""
+
+# Fitting Utility Functions
 
 def binner(arr, bins):
     bin_centers = (bins[:-1] + bins[1:])/2 
@@ -108,17 +112,17 @@ def optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
     sHatA = posterior_1C*sHatAC1 + (1-posterior_1C)*sHatAC2 #model averaging
     return sHatA
 
-# Write full Model Wrapper
+# Fitting Functions
 
-def bciobjective(data, conditions, possible_locations, N, pars):
+def bciobjective(data, conditions, possible_locations, N, mode, pCommon, pars):
 
-    """
-        Parameters --> np.array(dtype=object) of the following:
-                       pCommon, sigV, sigA, sigP,
-                       data, conditions, possible_locations N (in this order).
-    """
+    if mode == 'CI':
+        pCommon, sigV, sigA, sigP = pars #unpack array
+    if mode == 'FF':
+        sigV, sigA, sigP = pars
+    if mode == 'FS':
+        sigV, sigA, sigP = pars
 
-    pCommon, sigV, sigA, sigP = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
 
     nLL = 0
@@ -135,8 +139,7 @@ def bciobjective(data, conditions, possible_locations, N, pars):
 
     return nLL
     
-def bcifit(data : Dict[tuple : np.array], conditions : list, 
-           possible_locations : np.array, N = 20000):
+def bcifit(data, conditions, possible_locations, mode, N = 20000):
 
     """
        Fits the bci model to a given data dict, using Bayesian Optimization
@@ -152,72 +155,110 @@ def bcifit(data : Dict[tuple : np.array], conditions : list,
         res -> OptimizeResult object
     """
 
-    # Get Partial function to feed into Opt
-    objective = partial(bciobjective, data, conditions, possible_locations, N)
-
-    # Setup paramater space
-    pars = [Real(0.1, 0.6, name = 'pCommon'), 
+    if mode == "CI":
+        
+        objective = partial(bciobjective, data, conditions, possible_locations, N, mode, pCommon = None)
+        
+        pars = [Real(0.1, 0.6, name = 'pCommon'), 
             Real(1, 15, name = 'sigV'), 
             Real(1, 15, name = 'sigA'), 
             Real(1, 15, name = 'sigP')]
 
-    # Run Optimizer
-    res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
+        res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
                     initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
+        
+        return res
 
-    return res
+    elif mode == 'FF':
+        
+        objective = partial(bciobjective, data, conditions, possible_locations, N, mode, pCommon = 0.9999)
+        
+        pars = [Real(1, 15, name = 'sigV'), 
+            Real(1, 15, name = 'sigA'), 
+            Real(1, 15, name = 'sigP')]
+
+        res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
+                    initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
+        
+        return res
+
+    elif mode == 'FS':
+        
+        objective = partial(bciobjective, data, conditions, possible_locations, N, mode, pCommon = 0.0001)
+        
+        pars = [Real(1, 15, name = 'sigV'), 
+            Real(1, 15, name = 'sigA'), 
+            Real(1, 15, name = 'sigP')]
+
+        
+        res = gp_minimize(objective, dimensions=pars, n_initial_points=100, 
+                    initial_point_generator='lhs', noise='gaussian', n_jobs = 4)
+        
+        return res
 
 def bcirecompute(data, conditions, possible_locations, N, pars):
 
     pCommon, sigV, sigA, sigP = pars #unpack array
     varV, varA, varP = sigV**2, sigA**2, sigP**2
 
-    # Define new data structure to store results, depending on the kind of matrix we're after here
+    # Define new data structure to store results
+    bcioutV, bcioutA, bcioutposterior = {cond:None for i in conditions}, {cond:None for i in conditions}, {cond:None for i in conditions}
 
-    # run the model
+    # Run Model
+    for cond in conditions:
+        d, vloc, aloc, variance = data[cond], cond[0], cond[1], cond[2]
+        Xv, Xa = get_samples(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        posterior = calculate_posterior(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatV = optimal_visual_location(N, vloc, aloc, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatA = optimal_aud_location(Xv, Xa, N, pCommon, sigV, varV, sigA, varA, sigP, varP)
+        sHatVbin, sHatAbin = binner(sHatV, possible_locations), binner(sHatA, possible_locations)
+        sHatVcount, sHatAcount = counter(sHatVbin, possible_locations), counter(sHatAbin, possible_locations)
+        sHatVprobs, sHatAprobs = clip(getprobs(sHatVcount)), clip(getprobs(sHatAcount))
+        bcioutV[cond], bcioutA[cond], bcioutposterior[cond] = sHatVprobs, sHatAprobs, posterior
 
-    pass # return data structures
+    return bcioutV, bcioutA, bcioutposterior
 
 # OOP Wrapper
 
 class BCIModel:
+    """Class for implementation of the BCI model; the model is computed by running 20000 monte carlo samples of
+       Xv and Xa (the visual and auditory stimuli) and optimziing the models free parameters in order to maximize
+       the likelihood (implemented as minimization of the negative loglikelihood for convenience) of the model 
+       given the data. Model internals are a reproduction of that outlined in Kording et al., (2007) and implements
+       a model averaging strategy.
+       
+       The model can be ran in three modes:
+        Causal Inference - Normal BCI model with Model Averaging.
+        Forced Fusion - Normal BCI Model with prior set at (almost) 1.
+        Forced Segregation - Normal BCI Model with prior set at (almost) 0 -- don't wanna be dividing by zero do we.
+        
+       Alternative models are implemented such that we can compare their representational geometries layerwise
+       to that of Artificial Neural Networks"""
 
-    def __init__(self, data, conditions, possible_locations):
+    def __init__(self, data, conditions, possible_locations, modeltype):
+        self.modeltype = modeltype
         self.data = data
         self.conditions = conditions
         self.possible_locations = possible_locations
 
     def fit(self):
-
-        """
-            Calls the bcifit function on the classes params.
-            Returns OptimizeResult object.
-        """
+        """Fits the bci model to the given data. Returns an OptimizeResult object,
+           if needed, but also saves pars in class."""
         
         # Run Bayesian Optimization
-        res = bcifit(self.data, self.conditions, self.possible_locations)
-        
-        # Save Params in class
-        self.res = res
-        self.pCommon = res['x'][0]
-        self.sigV = res['x'][1]
-        self.sigA = res['x'][2]
-        self.sigP = res['x'][3]
+        self.res = bcifit(self.data, self.conditions, self.possible_locations, self.modeltype)
+        self.fittedpars = self.res['x']
 
-        # Return if wanted
-        return res
+        return self.res
 
-    def plotopt(self):
-
-        # plot dependencies of params
+    def plotopt(self, foldername):
+        """Plot partial dependencies of objective function parameters on one another 
+           as well as model convergence (currently unimplemented)"""
         plot_objective(self.res)
+        #plt.savefig(foldername + 'figures' + 'objectiveplot.png')
 
-    def output(self):
-
-        """
-            Given the fitted parameters, recompute the BCI model 
-            with a large amount of Monte Carlo simulations for
-            construction of the RDMs.
-        """
-
-        pass
+    def recompute(self):
+        """Given the fitted parameters, recompute the BCI model with a larger amount of MC samples.
+           Returns three dicts in the format condition:output, bcioutV, bcioutA and bcioutposterior"""
+        self.bcioutV, self.bcioutA, self.bcioutposterior = bcirecompute(self.data, self.conditions, self.possible_locations, 100000, self.fittedpars)
+        return self.bcioutV, self.bcioutA, self.bcioutposterior
