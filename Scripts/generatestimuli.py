@@ -3,7 +3,6 @@ import numpy as np
 import pickle as pkl
 from itertools import product
 from scipy.stats import truncnorm
-from tensorflow import convert_to_tensor
 
 """
     Python file for generating artificial stimuli, which represent those
@@ -87,14 +86,15 @@ class stimGenerator:
                 self.variance_conditions = variance_conditions
                 print("Loaded stimulus generator.")
     
-    def generate(self, size : int, id : str, save = False):
+    def generate(self, size : int, id : str, fext : str, save = False):
         
         """
             Generates dataset of arrays where size = n.
 
             Args:
              size -> size of the dataset. 
-             id -> unique identifier for the datasets
+             id -> unique identifier for the datasetsf
+             fext -> file extension
              save -> bool
         """
 
@@ -115,7 +115,7 @@ class stimGenerator:
             dataset[i] = trials
 
         # Save as pkl if True
-        fname = id + '_dataset.pkl'
+        fname = fext + '.pkl'
         filetowrite = pkl.open(fname, 'rb')
         pkl.dump(dataset, filetowrite)
 
