@@ -3,6 +3,7 @@ import numpy as np
 import pickle as pkl
 from itertools import product
 from scipy.stats import truncnorm
+from tensorflow import convert_to_tensor
 
 """
     Python file for generating artificial stimuli, which represent those
@@ -35,8 +36,8 @@ def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
     """
 
     # Create Bounds like this, as truncnorm is defined with regards to the standard normal
-    lowerbound, upperbound = ((0 - vloc) / vvar), ((array_length - vloc) / vvar)
-
+    lowerbound, upperbound = (((0 - vloc) / vvar) + (0.5*plusminusspread)), (((array_length - vloc) / vvar) - (0.5*plusminusspread))
+    
     # Sample from these stimulus distributions
     Vsamples, Asamples = np.round(truncnorm.rvs(lowerbound, upperbound, loc = vloc, scale = vvar, size = size)), np.round(truncnorm.rvs(lowerbound, upperbound, loc = aloc, scale = avar, size = size))
     Vsamples, Asamples = Vsamples.astype('int32'), Asamples.astype('int32')
@@ -44,12 +45,12 @@ def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
     stimarray = np.zeros((size, 2, array_length))
 
     # Iterably add sampled stimuli to the correct location in the subarray
-    for i,j,c, in zip(Vsamples, Asamples, range(0, size)): # c is essentially an iteration marker to get it all into the correct place
-
+    for i,j,c, in zip(Vsamples, Asamples, range(0, (size-1))): # c is essentially an iteration marker to get it all into the correct place
         vspread, aspread = [(i-plusminusspread), i, (i+plusminusspread)], [(j-plusminusspread), j, (j+plusminusspread)] # So get a list of where to begin and end adding zeros
 
-        for p,q in zip(vspread, aspread):
-            
+        for p,q in zip(range(vspread[0], vspread[-1]), range(aspread[0], aspread[-1])):
+            p, q = (p-1), (q-1) # Make indexing pythonic
+            print("i", i, "j", j, 'c', c, 'p', p, 'q', q, 'vspread', vspread, 'aspread', aspread)
             stimarray[c][0][p], stimarray[c][1][q] = 1, 1
 
     return stimarray
@@ -98,7 +99,7 @@ class stimGenerator:
              save -> bool
         """
 
-        n_percond = ((size / len(self.variance_conditions)) / self.n_locations) # find n to generate per cond
+        n_percond = int(((size / len(self.variance_conditions)) / self.n_locations)) # find n to generate per cond
         
         # Find locations at which stimuli can be placed
         bin_center = self.array_length / self.n_locations
@@ -111,7 +112,7 @@ class stimGenerator:
 
         # For each combination, generate n_percond trials and add to dict 
         for i in combinations:
-            trials = trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2])
+            trials = convert_to_tensor(trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2]))
             dataset[i] = trials
 
         # Save as pkl if True

@@ -2,6 +2,8 @@ import numpy as np
 import pickle as pkl
 import os
 from itertools import product
+from tensorflow import convert_to_tensor
+from sklearn.model_selection import train_test_split
 from keract import get_activations
 
 from generatestimuli import stimGenerator
@@ -93,11 +95,9 @@ class BCIANNExperiment:
         nest_dict = dict.fromkeys([i for i in range(len(nn.layers) - 2)])
         results_activations = dict.fromkeys(results_activations, nest_dict)
 
-        # convert stimuli to the correct format --> tensors
-
-
-
         # split into train and test groups
+        # create ndarray of x : label, get out of dict...
+        #X_train, y_train, X_test, y_test = train_test_split()
 
         # train model
 
@@ -127,13 +127,8 @@ class BCIANNExperiment:
     def runbci(self):
 
         """All we need for this are the bci parameters & nnoutV and nnoutA."""
-
-        def reshape_nndata():
-            """NN predictions will be returned as an np array. Should create mapping from classes 
-               output by the NN (probs 1-5) to actual locations ids, and then convert from numpy arrays
-               into lists of counts."""
-
-            return data
+        def reshape_nnouput():
+            pass
 
         ### So get data into correct format here for the bci model to work wiht
 
