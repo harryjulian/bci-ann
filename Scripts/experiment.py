@@ -15,6 +15,14 @@ from nnmodels import init_ffnet, init_recnet
 def get_conditions(possible_locations, variance_conditions):
     return list(product(possible_locations, possible_locations, variance_conditions))
 
+def find_index(cond, y_test): # I know this is absurdly slow and nooby, literally couldn't be bothered
+    l = []
+    arr = y_test.tolist()
+    for i in range(len(arr)):
+        if arr[i] == list(cond):
+            l.append
+    return l
+
 def make_expdir(foldername, id):
 
     """
@@ -38,15 +46,7 @@ def make_expdir(foldername, id):
 # OOP Implementation
 
 class BCIANNExperiment:
-
-    # so we need something to generate stimuli / or select a pre-generated 
-    # initialize + parameterize the neural network
-    # train the neural network on the stimuli
-    # save outputs in the correct place
-    # run the bci model for each version of the model
-        # plot convergence & obj in figures
-    # given all of the saved data...create the rdms - save them as pkl files but ensure they're still in the local env
-    # compute stats on the rdms. make sure this function is adaptable, maybe even in notebook format.
+    """"""
 
     def __init__(self, foldername, id, expparams, stimparams, nnparams, bciparams):
         
@@ -84,18 +84,18 @@ class BCIANNExperiment:
     # For the Neural Network
 
     def traintestnn(self):
-        """Initializes neural network with parsed params."""
+        """Initializes neural network with parsed params. Given the generated stimuli, train the 
+        network on the training set and then iterably test the network on the test set. Save behavioural 
+        responses as well as activations. Returns: results_behavioural, results-activations (two dicts)"""
 
-        # Init Model
+        # Initialize Model
         model = self.nn()
 
         # Create behavioural dicts to save results
-        results_behavioural = dict.fromkeys([i for i in self.stimuli.keys()]) 
+        results_behavioural = {i:[] for i in self.stimuli.keys()}
         
         # Create nested behavioural dict to save results
-        results_activations = dict.fromkeys([i for i in self.stimuli.keys()])
-        nest_dict = dict.fromkeys([i for i in range(len(model.layers) - 2)])
-        results_activations = dict.fromkeys(results_activations, nest_dict)
+        results_activations = {i:{i.name:[] for i in model.layers} for i in results_behavioural.keys}
 
         X = []
         y = []
@@ -108,32 +108,28 @@ class BCIANNExperiment:
         X, y = np.concatenate(X, axis = 0), np.concatenate(y, axis = 0)
 
         # Get Split
-        X_train, y_train, X_test, y_test = train_test_split(X, y, test_size = self.nnparams['testsize'], 
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = self.nnparams['testsize'], 
                                                             random_state=self.nnparams['random_state'])
         
         # Train model
         model.fit(X_train, y_train)
 
         # Test Model, iterably, on each condition
-        for i in results_behavioural(): # select each key of the dict (i.e. each condition)
-            stimlocs = np.where() # return locations of stimuli X_test and y_test
-            condarray = np.array() # all of the stimuli
+        for cond in self.conditions:
+            indices = find_index(cond, y_test)
+            X_testcond, y_testcond = X_test[indices], y_test[indices]
 
-            for j in condarray: # EXAMPLE EXAMPLE EXAMPLE
-                predicted_label = nn.predict(condarray)
-                layer_activations = get_activations(nn, j, auto_compile = True)
+            # For each stimulus, get behavioural results and append to nested list in dict
+            for j in X_testcond:
+                predicted_labels = model.predict(j)
+                results_behavioural[cond].append(predicted_labels)
 
-
-        #self.nnoutV
-        #self.nnoutA
-        #self.nnoutactivations
-        #bcioutVCI, bcioutACI, bcioutposteriorCI, # for CI model
-        #     bcioutVFF, bcioutAFF, bcioutposteriorFF, # for FF model
-        #     bcioutVFS, bcioutAFS, bcioutposteriorFS, # for FS model
-        #     nnoutV, nnoutA, # for NN behav data
-        #     nnoutactivations
-
-    # for BCI
+                # Get activations into correct list in nested dict
+                layer_activations = get_activations(model, j, auto_compile = True)
+                for layer, activations in layer_activations.items():
+                    results_activations[cond][layer].append(layer_activations[layer])
+                
+        return results_behavioural, results_activations
 
     def runbci(self):
 
@@ -158,6 +154,8 @@ class BCIANNExperiment:
             for i,j in zip([bcioutV, bcioutA, bcioutposterior], ['bcioutV', 'bcioutA', 'bcioutposterior']):
                 with open(savepath + "//" + j + self.id + ".pkl", 'wb') as f:
                     pkl.dump(i, f)
+
+        pass
 
     def metadata():
 
