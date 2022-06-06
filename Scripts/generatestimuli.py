@@ -3,6 +3,7 @@ import numpy as np
 import pickle as pkl
 from itertools import product
 from scipy.stats import truncnorm
+from tensorflow import convert_to_tensor
 
 """
     Python file for generating artificial stimuli, which represent those
@@ -14,7 +15,7 @@ from scipy.stats import truncnorm
     M1 chip...
 """
 
-def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
+def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar, endsize = 1.2):
 
     """
         Used to generate stimuli for an individual condition, which
@@ -34,22 +35,22 @@ def trialgen(array_length, plusminusspread, size, vloc, aloc, vvar, avar):
 
     """
 
-    # Create Bounds like this, as truncnorm is defined with regards to the standard normal
-    lowerbound, upperbound = ((0 - vloc) / vvar), ((array_length - vloc) / vvar)
+    # Need to define the bounds in relation to the Standard Normal & The location we're using 
+    lowreal, highreal = 0, int((array_length * endsize))
 
+    lowerbound, upperbound = (((0 - vloc) / vvar) + (plusminusspread+1)), (((array_length - vloc) / vvar) - (1+plusminusspread))
+    
     # Sample from these stimulus distributions
     Vsamples, Asamples = np.round(truncnorm.rvs(lowerbound, upperbound, loc = vloc, scale = vvar, size = size)), np.round(truncnorm.rvs(lowerbound, upperbound, loc = aloc, scale = avar, size = size))
     Vsamples, Asamples = Vsamples.astype('int32'), Asamples.astype('int32')
     # stimulus array of shape n_stim * 2 modalities * length of each subarray
-    stimarray = np.zeros((size, 2, array_length))
+    stimarray = np.zeros((size, 2, highreal))
 
     # Iterably add sampled stimuli to the correct location in the subarray
-    for i,j,c, in zip(Vsamples, Asamples, range(0, size)): # c is essentially an iteration marker to get it all into the correct place
-
+    for i,j,c, in zip(Vsamples, Asamples, range(0, (size-1))): # c is essentially an iteration marker to get it all into the correct place
         vspread, aspread = [(i-plusminusspread), i, (i+plusminusspread)], [(j-plusminusspread), j, (j+plusminusspread)] # So get a list of where to begin and end adding zeros
-
         for p,q in zip(vspread, aspread):
-            
+            p, q = (p-1), (q-1) # Make indexing pythonic
             stimarray[c][0][p], stimarray[c][1][q] = 1, 1
 
     return stimarray
@@ -62,7 +63,7 @@ class stimGenerator:
         tested on neural networks.
 
         Args:
-         array_length -> length of the proposed 1 * n array.
+         array_length -> length of the proposed "real array" -- 10 percent is added on either side.
 
          spread -> determines how many entries around the "stimulus
                     landing spot" that is changed, i.e. size of the
@@ -86,7 +87,7 @@ class stimGenerator:
                 self.variance_conditions = variance_conditions
                 print("Loaded stimulus generator.")
     
-    def generate(self, size : int, id : str, fext : str, save = False):
+    def generate(self, size : int):
         
         """
             Generates dataset of arrays where size = n.
@@ -98,7 +99,7 @@ class stimGenerator:
              save -> bool
         """
 
-        n_percond = ((size / len(self.variance_conditions)) / self.n_locations) # find n to generate per cond
+        n_percond = int(((size / len(self.variance_conditions)) / self.n_locations)) # find n to generate per cond
         
         # Find locations at which stimuli can be placed
         bin_center = self.array_length / self.n_locations
@@ -107,16 +108,13 @@ class stimGenerator:
 
         # Create Dataset Obj
         combinations = list(product(Vlist, Alist, self.variance_conditions))
+        print(combinations)
         dataset = {i:None for i in combinations}
 
         # For each combination, generate n_percond trials and add to dict 
         for i in combinations:
-            trials = trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2])
+            print(i)
+            trials = convert_to_tensor(trialgen(self.array_length, self.plusminusspread, n_percond, vloc = i[0], aloc = i[1], vvar = i[2], avar = i[2]))
             dataset[i] = trials
-
-        # Save as pkl if True
-        fname = fext + '.pkl'
-        filetowrite = pkl.open(fname, 'rb')
-        pkl.dump(dataset, filetowrite)
 
         return dataset

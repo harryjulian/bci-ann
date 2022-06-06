@@ -2,6 +2,8 @@ import numpy as np
 import pickle as pkl
 import os
 from itertools import product
+from tensorflow import convert_to_tensor
+from sklearn.model_selection import train_test_split
 from keract import get_activations
 
 from generatestimuli import stimGenerator
@@ -53,8 +55,10 @@ class BCIANNExperiment:
         self.stimparams = stimparams
         self.nnparams = nnparams
         self.bciparams = bciparams
+
         self.possible_locations = expparams["possible_locations"]
         self.variance_conditions = expparams["variance_conditions"]
+        self.nn = nnparams['nn']
         self.conditions = get_conditions(self.possible_locations, self.variance_conditions)
 
     def setupdirs(self):
@@ -79,31 +83,38 @@ class BCIANNExperiment:
 
     # For the Neural Network
 
-    def traintestnn(self, nn):
+    def traintestnn(self):
         """Initializes neural network with parsed params."""
 
         # Init Model
-        model = nn()
+        model = self.nn()
 
         # Create behavioural dicts to save results
         results_behavioural = dict.fromkeys([i for i in self.stimuli.keys()]) 
         
         # Create nested behavioural dict to save results
         results_activations = dict.fromkeys([i for i in self.stimuli.keys()])
-        nest_dict = dict.fromkeys([i for i in range(len(nn.layers) - 2)])
+        nest_dict = dict.fromkeys([i for i in range(len(model.layers) - 2)])
         results_activations = dict.fromkeys(results_activations, nest_dict)
 
-        # convert stimuli to the correct format --> tensors
+        X = []
+        y = []
 
+        for cond in self.conditions:
+            X.append(self.stimuli[cond])
+            y.append(np.array(([cond] * len(self.stimuli[cond]))))
 
+        # Create Aligned Arrays of all stimuli!
+        X, y = np.concatenate(X, axis = 0), np.concatenate(y, axis = 0)
 
-        # split into train and test groups
+        # Get Split
+        X_train, y_train, X_test, y_test = train_test_split(X, y, test_size = self.nnparams['testsize'], 
+                                                            random_state=self.nnparams['random_state'])
+        
+        # Train model
+        model.fit(X_train, y_train)
 
-        # train model
-
-        # test model on all stimuli in each condition in an ordered fashion
-
-        # Test Model
+        # Test Model, iterably, on each condition
         for i in results_behavioural(): # select each key of the dict (i.e. each condition)
             stimlocs = np.where() # return locations of stimuli X_test and y_test
             condarray = np.array() # all of the stimuli
@@ -127,13 +138,8 @@ class BCIANNExperiment:
     def runbci(self):
 
         """All we need for this are the bci parameters & nnoutV and nnoutA."""
-
-        def reshape_nndata():
-            """NN predictions will be returned as an np array. Should create mapping from classes 
-               output by the NN (probs 1-5) to actual locations ids, and then convert from numpy arrays
-               into lists of counts."""
-
-            return data
+        def reshape_nnouput():
+            pass
 
         ### So get data into correct format here for the bci model to work wiht
 
